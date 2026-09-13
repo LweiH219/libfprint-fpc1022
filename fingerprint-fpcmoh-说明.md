@@ -117,3 +117,28 @@ pacman -Q libfprint libfprint-fpc1022   # 若 libfprint 又被装回来，就是
 - 驱动来自**未合并的 MR**，属于实验性支持；`10a5:9201` 连作者都没测过（你这里能跑是实测结果，不代表 FPC 官方保证）。
 - 官方研究的可靠性数据（在 9200 上）只有 22/30 的真人匹配率，且对指纹**摆放位置敏感**（居中 6/6，旋转后 1/5）。**不要把密码通道关掉**——当前配置始终保留密码。
 - 本机 `lweih` 在 `empower` 组，`pkexec` 可免密取得 root。这既是方便也是安全面，请知悉。
+
+
+---
+
+## 追加（2026-09-13 晚）：polkit 也接入指纹
+
+- **新建 `/etc/pam.d/polkit-1`**（此前不存在，原走 vendor 默认 `/usr/lib/pam.d/polkit-1`）：
+
+```
+auth       sufficient   pam_fprintd.so   timeout=15 max-tries=1
+auth       include      system-auth
+account    include      system-auth
+password   include      system-auth
+session    include      system-auth
+```
+
+- **实测通过**：polkit 弹窗会显示「请把手指放在识别器上」，按一下即授权（约 2 秒）。
+  日志证据：`polkit-agent-helper@18` 成功、`fprintd` 被 D-Bus 唤醒被调用，
+  且**没有** `pam_unix(polkit-1:auth)` —— 认证阶段由 pam_fprintd 满足。
+- 作用域：只影响 polkit。SDDM 登录、sudo 均不受影响（sudo 另有 `/etc/pam.d/sudo`）。
+- 注意：`org.freedesktop.policykit.exec` 默认要求是 `auth_admin`（**无缓存**），
+  每次提权都会问一次；指纹失败/超时会自动回落密码提示。
+- **回滚**：`sudo rm /etc/pam.d/polkit-1` 即恢复 vendor 默认行为。
+- 安全性权衡：polkit 授权 ≈ root 级操作，而生物识别不可撤销（指纹无法更换）。
+  密码回退始终保留；若想削弱指纹权重，把 `timeout=15` 调小（如 5 秒）即可。
