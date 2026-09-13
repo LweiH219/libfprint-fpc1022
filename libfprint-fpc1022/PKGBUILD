@@ -1,0 +1,62 @@
+# Based on AUR: libfprint-fpc1022 by buffmio <laesunny@gmail.com>
+# Local deviations, all to keep this package a strict superset of the official
+# 'libfprint' package it replaces (so pacman removes nothing the system had):
+#   * -Dudev_hwdb=enabled  - the upsteam default skips installing
+#                            60-autosuspend-libfprint-2.hwdb when udev >= 248 is
+#                            detected, but systemd's own 60-autosuspend.hwdb
+#                            contains no 10A5 entries at all, and this file is
+#                            what gives 10a5:9201 its ID_AUTOSUSPEND/ID_PERSIST.
+#   * -Ddoc=true           - match the official package's gtk-doc html
+#   * options=(!lto)       - CachyOS makepkg.conf enables LTO globally; keep the
+#                            build identical to the one verified against hardware
+pkgname=libfprint-fpc1022
+pkgver=1.94.10.r2.gba10c93
+pkgrel=1
+pkgdesc='libfprint with experimental FPC Disum/fpcmoh driver (10a5:9200, 10a5:9201) from MR!570'
+arch=('x86_64')
+url='https://gitlab.freedesktop.org/libfprint/libfprint/-/merge_requests/570'
+license=('LGPL-2.1-or-later')
+depends=(
+  'glib2'
+  'glibc'
+  'libgcc'
+  'libgudev'
+  'libgusb'
+  'libstdc++'
+  'opencv'
+  'openssl'
+  'pixman'
+)
+makedepends=(
+  'git'
+  'glib2-devel'
+  'gobject-introspection'
+  'gtk-doc'
+  'meson'
+  'ninja'
+  'python-cairo'
+  'python-gobject'
+  'systemd'
+)
+optdepends=('fprintd: D-Bus daemon and PAM module for fingerprint readers')
+provides=('libfprint=1.94.10' 'libfprint-2.so')
+conflicts=('libfprint')
+options=('!lto')
+_commit='ba10c9398fe4542ff6403549884d0c8687182845'
+source=("libfprint::git+https://gitlab.freedesktop.org/libfprint/libfprint.git#commit=${_commit}")
+sha256sums=('SKIP')
+
+build() {
+  meson setup build libfprint \
+    --prefix=/usr \
+    --buildtype=release \
+    -D drivers=all \
+    -D doc=true \
+    -D udev_hwdb=enabled \
+    -D installed-tests=false
+  meson compile -C build
+}
+
+package() {
+  DESTDIR="$pkgdir" meson install -C build --no-rebuild
+}
