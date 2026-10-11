@@ -1,0 +1,28 @@
+第三方内容与许可说明（NOTICE）
+================================
+
+本仓库包含第三方代码与素材，其版权归各自作者所有，许可如下。
+
+1) source/libfprint/ —— libfprint 源码快照
+   上游仓库 : https://gitlab.freedesktop.org/libfprint/libfprint
+   提交     : ba10c9398fe4542ff6403549884d0c8687182845
+              (2026-07-15, "Add fpcmoh driver for FPC Disum match-on-host sensors")
+   来源 MR  : !570（截至收录时仍未合并）
+              https://gitlab.freedesktop.org/libfprint/libfprint/-/merge_requests/570
+   许可     : LGPL-2.1-or-later（见 source/libfprint/COPYING）
+   版权     : 归 libfprint 各贡献者所有
+   说明     : 本仓库仅为存档 / 离线查阅 / 构建验证而收录该提交的完整工作树，
+              除去除 .git 元数据外未作任何修改。
+              其中 fpcmoh 驱动由 MR !570 的作者贡献，并非本项目作者原创。
+              如需分发由该源码编译出的二进制，请遵守 LGPL-2.1-or-later 的相关义务。
+
+2) PKGBUILD
+   来源     : AUR 包 libfprint-fpc1022
+              https://aur.archlinux.org/packages/libfprint-fpc1022
+   原作者   : buffmio <laesunny@gmail.com>
+   本地改动 : 见 PKGBUILD 顶部注释 —— 强制安装 udev hwdb、开启 API 文档、关闭 LTO。
+   许可     : 沿用上游 AUR 包的做法。
+
+3) 商标
+   "FPC"、"Fingerprint Cards" 及其他厂商名称 / 商标归各自所有者。
+   本项目与 libfprint 上游、Fingerprint Cards、任何硬件厂商均无关联，属非官方项目。

@@ -1,0 +1,15 @@
+# ── makepkg 构建产物（在 PKGBUILD 所在目录产生）──
+/libfprint-fpc1022/src/
+/libfprint-fpc1022/pkg/
+/libfprint-fpc1022/*.pkg.tar.*
+
+# 预编译包改由 GitHub Releases 分发，不再进入 git 历史
+*.pkg.tar.zst
+*.pkg.tar.xz
+
+# 编辑器 / 系统杂项
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store

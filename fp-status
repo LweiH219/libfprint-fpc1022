@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# fp-status — 指纹状态自检（只读，不会修改任何东西）
+# 用法：
+#   fp-status              仅检查设备 / 已录入手指 / sudo 配置
+#   fp-status -v [手指名]  额外发起一次真实指纹验证（需要你按传感器）
+# 例：
+#   fp-status -v
+#   fp-status -v right-index-finger
+
+set -u
+
+U="${SUDO_USER:-$USER}"
+VERIFY=0
+FINGER=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -v|--verify) VERIFY=1; shift ;;
+    -h|--help)   sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *)           FINGER="$1"; shift ;;
+  esac
+done
+
+command -v fprintd-list >/dev/null 2>&1 || { echo "✗ 未安装 fprintd"; exit 1; }
+
+out="$(fprintd-list "$U" 2>&1)"; rc=$?
+
+echo "== 1. 指纹设备 =="
+if [ $rc -ne 0 ]; then
+  echo "  ✗ fprintd-list 调用失败（fprintd 服务异常？）"
+  printf '%s\n' "$out" | sed 's/^/    /'
+  exit 1
+elif printf '%s\n' "$out" | grep -q "/net/reactivated/Fprint/Device"; then
+  printf '%s\n' "$out" | grep -E "/net/reactivated/Fprint/Device|Sensor|模组" | sed 's/^/  ✓ /'
+else
+  echo "  ✗ 没有检测到指纹设备（驱动或硬件问题）"
+  printf '%s\n' "$out" | sed 's/^/    /'
+  exit 1
+fi
+
+echo "== 2. 已录入的手指 =="
+fingers="$(printf '%s\n' "$out" | grep -oE '#[0-9]+: [a-z-]+' || true)"
+if [ -n "$fingers" ]; then
+  printf '%s\n' "$fingers" | sed 's/^/  /'
+  n=$(printf '%s\n' "$fingers" | wc -l)
+  echo "  共 $n 个"
+else
+  echo "  （无）—— 用 fprintd-enroll -f <手指名> 录入"
+fi
+
+echo "== 3. sudo 指纹提权配置 =="
+if [ -r /etc/pam.d/sudo ] && grep -qE '^[[:space:]]*auth[[:space:]]+sufficient[[:space:]]+pam_fprintd\.so' /etc/pam.d/sudo; then
+  echo "  ✓ 已启用： $(grep -oE 'pam_fprintd\.so.*' /etc/pam.d/sudo | head -1 | xargs)"
+  if grep -qE '^[[:space:]]*auth[[:space:]]+(include|required|sufficient)' /etc/pam.d/sudo; then
+    echo "  ✓ 密码回落仍在（指纹失败可照常输密码）"
+  else
+    echo "  ⚠ 警告：似乎没有其他 auth 模块了，密码可能无法回退！"
+  fi
+else
+  echo "  （未启用）"
+fi
+
+if [ $VERIFY -eq 1 ]; then
+  echo "== 4. 实时验证（请把手指按在电源键指纹区）=="
+  t0=$(date +%s)
+  if [ -n "$FINGER" ]; then
+    vout="$(fprintd-verify -f "$FINGER" 2>&1)"
+  else
+    vout="$(fprintd-verify 2>&1)"
+  fi
+  t1=$(date +%s)
+  if printf '%s\n' "$vout" | grep -q "verify-match"; then
+    echo "  ✓ 匹配成功（用时 $((t1-t0)) 秒）"
+  elif printf '%s\n' "$vout" | grep -q "verify-no-match"; then
+    echo "  ✗ 本次未匹配（设备正常，只是没认出；换个角度/力道再试）"
+  else
+    echo "  ✗ 验证未完成"
+  fi
+  printf '%s\n' "$vout" | grep -E "Verifying|Verify result|Listing|#" | sed 's/^/    /'
+fi
+
+echo
+echo "提示：端到端测试用  sudo -k; sudo id   （-k 会清掉 15 分钟的 sudo 缓存，否则看不到提示）"
